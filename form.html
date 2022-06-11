@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en" id="the_html">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <style>
+      input[disabled] {
+        background-color: #eee;
+        cursor: not-allowed;
+      }
+      #drop_zone {
+        border: 1px dashed #ccc;
+        height: 50px;
+        position: relative;
+      }
+      #drop_zone span.text {
+        position: absolute;
+        display: inline-block;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        z-index: -1;
+        color: lightgray;
+      }
+      #drop_zone.-on {
+        border: 1px dashed lightblue;
+        box-shadow: 3px 3px 5px lightblue inset, -3px -3px 5px lightblue inset;
+      }
+      #preview {
+        border: 1px solid lightgray;
+        display: inline-block;
+        width: 100px;
+        min-height: 150px;
+        position: relative;
+      }
+      #preview span.text {
+        position: absolute;
+        display: inline-block;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        z-index: -1;
+        color: lightgray;
+      }
+      #preview img.preview_img {
+        width: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <p>是否支援全螢幕 : <span id="fullScr_text"></span></p>
+    <p>是否支援地理資訊定位 : <span id="position_check"></span></p>
+
+    <form action="#" method="#" id="the_form">
+      <div>
+        <label>商品名稱 : </label>
+        <input type="text" id="p_name" />
+      </div>
+      <div>
+        <label>商品數量 : </label>
+        <input type="range" min="1" max="10" value="1" id="p_count" />
+        <span id="p_count_value"></span>
+      </div>
+      <div>
+        <label>商品圖片 : </label>
+        <input type="file" id="p_file" />
+
+        <div id="drop_zone"><span class="text">圖片拖曳至此處</span></div>
+        <div id="preview"><span class="text">預覽圖 </span></div>
+      </div>
+      <div>
+        <button type="reset">清空資料</button>
+        <button type="button" id="btn_submit">送出資料</button>
+      </div>
+      <div>
+        <button type="button" id="full_btn">進入/離開全螢幕模式</button>
+      </div>
+      <div>
+        <p>
+          使用者所在約略位置 :
+          <span>
+            <label>經度：</label><input type="text" id="lng" readonly />
+            <label>緯度：</label><input type="text" id="lat" readonly />
+          </span>
+        </p>
+      </div>
+    </form>
+    <script>
+      //-------------------------------------------------------------
+      // 商品數量：type 為 range，在 mousemove 時觸發
+      var p_count_el = document.getElementById('p_count');
+      p_count_el.addEventListener('mousemove', function () {
+        // other code...
+        // console.log("按到了");
+        //讓觸發時的數量，顯示在旁邊的地方
+        // console.log(p_count_el.value);
+        document.querySelector('#p_count_value').innerHTML = p_count_el.value;
+      });
+
+      // reset 按鈕按下去的時候，觸發
+      var the_form = document.getElementById('the_form');
+      the_form.addEventListener('reset', function () {
+        // other code...
+        // console.log("按到了"); //測試是否註冊成功
+
+        localStorage.clear(); //先設定表單內的資料全部清除
+        document.querySelector('#p_count_value').innerHTML = 1; //再將數量旁的內容清空取代成1(自訂預設)
+        location_funtion();
+        preview.innerHTML = `<span class="text">預覽圖 </span>`; //還原預覽圖
+      });
+
+      //-------------------------步驟二 支援全螢幕模式------------------------------------
+      //先判斷是否為全螢幕
+      var fullScr_text_el = document.querySelector('#fullScr_text');
+      if (document.fullscreenEnabled) {
+        //是的話進入全螢幕
+        fullScr_text_el.innerHTML = '是';
+      } else {
+        //不是的話跳出訊息
+        fullScr_text_el.innerHTML = '否';
+      }
+
+      //全螢幕
+      var btn_fullscreen_html = document.getElementById('full_btn');
+      btn_fullscreen_html.addEventListener('click', function () {
+        // console.log("選到了");
+        if (document.fullscreenElement == null) {
+          the_html.requestFullscreen();
+          console.log('進入全螢幕模式');
+        } else {
+          //全螢幕模式再關閉
+          document.exitFullscreen();
+          console.log('已退出全螢幕模式');
+        }
+      });
+
+      //-------------------------步驟三 使用 Geolocation 取得位置經緯度------------------------------------
+
+      // var lng_value = document.querySelector("#lng").value;
+      // var lat_value = document.querySelector("#lat").value;
+      let form_data = JSON.parse(sessionStorage.getItem('form_data'));
+
+      function init() {
+        if (navigator.geolocation) {
+          // console.log(123);
+          // 有支援
+          document.querySelector('#position_check').innerHTML = '是';
+          location_funtion();
+        } else {
+          document.querySelector('#position_check').innerHTML = '否';
+        }
+
+        if (form_data !== undefined) {
+          document.querySelector('#p_name').value = form_data['p_name'];
+          document.querySelector('#p_count').value = form_data.p_count;
+          preview.innerHTML = `<img src="${form_data.img_base64}" alt="" class="preview_img">`;
+          document.querySelector('#lng').value = form_data.position.lng;
+          document.querySelector('#lat').value = form_data.position.lat;
+        }
+      }
+
+      //自動取得位置資訊
+      function location_funtion() {
+        navigator.geolocation.getCurrentPosition(
+          function (position) {
+            // 取得 position 位置資訊，可於 console 中印出來看看
+            // console.log(position.coords.longitude);
+            document.querySelector('#lng').value = position.coords.longitude; // 經度
+            document.querySelector('#lat').value = position.coords.latitude; // 緯度
+            document.querySelector('#lng').value = form_data.position.lng;
+            document.querySelector('#lat').value = form_data.position.lat;
+          },
+          function (error) {
+            // 使用者不同意取得位置資訊時
+            document.querySelector('#lng').disabled = true;
+            document.querySelector('#lat').disabled = true;
+            document.querySelector('#lng').value = form_data.position.lng;
+            document.querySelector('#lat').value = form_data.position.lat;
+          },
+          {
+            //不加也沒關係 偏設定
+            enableHighAccuracy: true, //回傳較精確的位置
+            maximumAge: 0,
+            timeout: 5000,
+          }
+        );
+      }
+
+      window.addEventListener('load', init);
+      //-------------------------步驟四、使用 Drag and Drop 拖曳檔案------------------------------------
+
+      //允許可以拖曳圖片到此
+      var rop_zone = document.querySelector('#drop_zone');
+      rop_zone.addEventListener('dragover', function (e) {
+        //dragover曳進去時一直觸發
+        e.preventDefault(); //允許有拖曳東西在這個地方
+
+        // console.log("eee");//測試拖曳到此處會觸發
+      });
+      rop_zone.addEventListener('drop', function (e) {
+        // console.log("ttt"); //圖片拖進去放開觸發
+        console.log(e);
+        // console.log(e.dataTransfer.files[0]); //要先印出e有什麼
+        let reader = new FileReader();
+        // console.log(e.target.files[0]); //抓到上傳圖片的資訊
+
+        reader.readAsDataURL(e.dataTransfer.files[0]);
+        reader.addEventListener('load', () => {
+          console.log(reader.result); //先印出reader結果
+
+          //將原本的預覽圖文字，替換為reader抓到的結果，並且命名class套用老師給的CSS效果
+          preview.innerHTML = `<img src="${reader.result}" alt="" class="preview_img">`;
+        });
+
+        e.preventDefault();
+      });
+
+      rop_zone.addEventListener('dragenter', function (e) {
+        e.preventDefault();
+      });
+      //-------------------------步驟五、透過 File 取得預覽圖------------------------------------
+      const p_file = document.querySelector('#p_file');
+      const preview = document.querySelector('#preview');
+      //change事件=onchange、click事件=onclick
+      p_file.onchange = (e) => {
+        // console.log(123);
+        let reader = new FileReader();
+        // console.log(e.target.files[0]); //抓到上傳圖片的資訊
+        reader.readAsDataURL(e.target.files[0]);
+        reader.addEventListener('load', () => {
+          // console.log(reader.result); //先印出reader結果
+
+          //將原本的預覽圖文字，替換為reader抓到的結果，並且命名class套用老師給的CSS效果
+          preview.innerHTML = `<img id="img_base64" src="${reader.result}" alt="" class="preview_img">`;
+        });
+      };
+
+      //-------------------------步驟六、使用 Session Storage 儲存資料------------------------------------
+      const data = {
+        p_name: '',
+        p_count: '',
+        img_base64: '',
+        position: {
+          lng: '',
+          lat: '',
+        },
+      };
+      const btn_submit = document.querySelector('#btn_submit');
+
+      btn_submit.onclick = () => {
+        // console.log(123);
+        data.p_name = document.querySelector('#p_name').value;
+        data.p_count = document.querySelector('#p_count').value;
+        data.img_base64 = document.querySelector('#img_base64').src;
+        data.position.lat = document.querySelector('#lat').value;
+        data.position.lng = document.querySelector('#lng').value;
+        // console.log(data);
+        sessionStorage.setItem('form_data', JSON.stringify(data));
+        location.href = 'confirm.html'; //跳轉指定連結
+      };
+    </script>
+  </body>
+</html>

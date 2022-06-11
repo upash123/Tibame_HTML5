@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <h3>該瀏覽器有支援 worker 嗎 ? <span id="isWorker"></span></h3>
+    <h3 class="confirm">
+      請於
+      <span id="second">10</span>
+      秒內按下「確認」按鈕，確認資訊正確性，否則返回前一頁
+    </h3>
+    <hr />
+
+    <h1>Confirm 頁面</h1>
+    <h2>商品名稱 : <span id="p_name"></span></h2>
+    <h3>商品數量 : <span id="p_count"></span></h3>
+    <h3>位置資訊經度 :<span id="lng"></span></h3>
+    <h3>位置資訊緯度 :<span id="lat"></span></h3>
+    <h3>商品圖 :</h3>
+    <img
+      style="width: 300px; height: 200px"
+      src=""
+      alt="預覽圖"
+      id="img_base64"
+    />
+    <div>
+      <button type="button" id="confirm">確認</button>
+    </div>
+    <script>
+      // 建立 Worker後 與js檔案連線
+      const myWorker = new Worker('./worker_countdown.js');
+      //把秒數的id綁定
+      const second = document.querySelector('#second');
+
+      document.querySelector('#confirm').onclick = () => {
+        document.querySelector('.confirm').style.display = 'none';
+        myWorker.terminate(); //停止
+      };
+
+      function init() {
+        // 判斷是否支援
+        document.querySelector('#isWorker').innerHTML = window.Worker
+          ? '是'
+          : '否';
+
+        // console.log(sessionStorage.getItem('form_data'));
+        let form_data = JSON.parse(sessionStorage.getItem('form_data'));
+        // console.log(form_data);
+        document.querySelector('#p_name').innerHTML = form_data['p_naxme'];
+        document.querySelector('#p_count').innerHTML = form_data.p_count;
+        document.querySelector('#lng').innerHTML = form_data.position.lng;
+        document.querySelector('#lat').innerHTML = form_data.position.lat;
+        document.querySelector('#img_base64').src = form_data.img_base64;
+
+        // ES6
+        // for (const k in form_data) {
+        //   if (['p_name', 'p_count'].includes(k)) {
+        //     document.querySelector(`#${k}`).innerHTML = form_data[k];
+        //     continue;
+        //   }
+        //   if (k === 'position') {
+        //     // 解構
+        //     const { lng, lat } = form_data[k];
+        //     [
+        //       document.querySelector('#lng').innerHTML,
+        //       document.querySelector('#lat').innerHTML,
+        //     ] = [lng, lat];
+        //     continue;
+        //   }
+        //   document.querySelector('#img_base64').src = form_data[k];
+        // }
+        myWorker.postMessage(10); //進入頁面時執行傳入10秒
+      }
+
+      // 停止 worker 的執行
+      myWorker.onmessage = function (e) {
+        if (e.data < 0) return history.go(-1);
+        second.innerHTML = e.data;
+      };
+      window.addEventListener('load', init);
+    </script>
+  </body>
+</html>
